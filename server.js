@@ -85,14 +85,17 @@ const server = http.createServer(async (req, res) => {
           provider === "groq"
             ? "api.groq.com"
             : "openrouter.ai";
-        const path = "/openai/v1/chat/completions";
+        const path =
+          provider === "groq"
+            ? "/openai/v1/chat/completions"
+            : "/api/v1/chat/completions";
 
         const result = await httpsPost(
           hostname,
           path,
           { Authorization: "Bearer " + apiKey },
           {
-            model: model || "llama3-8b-8192",
+            model: model || "llama-3.3-70b-versatile",
             messages: [
               { role: "system", content: forcedSystem },
               { role: "user",   content: userPrompt },
@@ -117,7 +120,7 @@ const server = http.createServer(async (req, res) => {
       } else if (provider === "gemini") {
         const result = await httpsPost(
           "generativelanguage.googleapis.com",
-          `/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          `/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
           {},
           {
             contents: [{
