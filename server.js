@@ -1,6 +1,6 @@
 // server.js
 // Render.com'a deploy edilecek Node.js proxy
-// Roblox → bu sunucu → Groq/OpenRouter/Gemini
+// Roblox → bu sunucu → Groq/OpenRouter/Gemini + Hugging Face
 
 const https = require("https");
 const http  = require("http");
@@ -143,6 +143,42 @@ const server = http.createServer(async (req, res) => {
         }
 
         resultText = result.body?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+
+      // ── HUGGING FACE (EKLEDİK) ──
+      } else if (provider === "huggingface") {
+        // Hugging Face için gereken model adı body'den alınır, yoksa varsayılan
+        const hfModel = model || "mistralai/Mistral-7B-Instruct-v0.3";
+        const result = await httpsPost(
+          "api-inference.huggingface.co",
+          `/models/${hfModel}`,
+          { Authorization: "Bearer " + apiKey },
+          {
+            inputs: forcedSystem + "\n\n" + userPrompt + "\nKarar JSON:",
+            parameters: {
+              max_new_tokens: 150,
+              temperature: 0.5,
+              return_full_text: false,
+              stop: ["</s>"]
+            }
+          }
+        );
+
+        if (result.status !== 200) {
+          res.end(JSON.stringify({
+            ok: false,
+            error: "HuggingFace HTTP " + result.status + ": " + JSON.stringify(result.body).slice(0, 200),
+          }));
+          return;
+        }
+
+        // Hugging Face yanıtı: [{generated_text: "..."}]
+        const hfData = result.body;
+        if (Array.isArray(hfData) && hfData.length > 0 && hfData[0].generated_text) {
+          resultText = hfData[0].generated_text;
+        } else {
+          res.end(JSON.stringify({ ok: false, error: "Hugging Face model metin döndürmedi" }));
+          return;
+        }
 
       } else {
         res.statusCode = 400;
