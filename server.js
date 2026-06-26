@@ -151,6 +151,36 @@ const server = http.createServer(async (req, res) => {
           }
         );
 
+        } else if (provider === "deepseek") {
+    const result = await httpsPost(
+        "api.deepseek.com",
+        "/v1/chat/completions",
+        {
+            "Authorization": "Bearer " + apiKey,
+            "Content-Type": "application/json"
+        },
+        {
+            model: model || "deepseek-chat",   // ücretsiz model
+            messages: [
+                { role: "system", content: forcedSystem },
+                { role: "user", content: userPrompt }
+            ],
+            temperature: 0.5,
+            max_tokens: 200,
+            response_format: { type: "json_object" }   // JSON çıktısı zorla
+        }
+    );
+
+    if (result.status !== 200) {
+        res.end(JSON.stringify({
+            ok: false,
+            error: "DeepSeek HTTP " + result.status + ": " + JSON.stringify(result.body).slice(0, 200),
+        }));
+        return;
+    }
+
+    resultText = result.body?.choices?.[0]?.message?.content ?? null;
+
         if (result.status !== 200) {
           res.end(JSON.stringify({
             ok: false,
