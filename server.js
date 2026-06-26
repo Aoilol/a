@@ -7,7 +7,6 @@ const http  = require("http");
 
 const PORT = process.env.PORT || 3000;
 
-// ── Yardımcı: HTTPS POST isteği ──────────────────────────
 function httpsPost(hostname, path, headers, body) {
   return new Promise((resolve, reject) => {
     const bodyStr = JSON.stringify(body);
@@ -40,12 +39,10 @@ function httpsPost(hostname, path, headers, body) {
   });
 }
 
-// ── Ana sunucu ────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Content-Type", "application/json");
 
-  // Sağlık kontrolü
   if (req.method === "GET") {
     res.end(JSON.stringify({ status: "proxy calisiyor" }));
     return;
@@ -57,7 +54,6 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // Body oku
   let rawBody = "";
   req.on("data", (chunk) => (rawBody += chunk));
   req.on("end", async () => {
@@ -79,16 +75,11 @@ const server = http.createServer(async (req, res) => {
     try {
       let resultText = null;
 
-      // ── GROQ veya OPENROUTER ──
       if (provider === "groq" || provider === "openrouter") {
-        const hostname =
-          provider === "groq"
-            ? "api.groq.com"
-            : "openrouter.ai";
-        const path =
-          provider === "groq"
-            ? "/openai/v1/chat/completions"
-            : "/api/v1/chat/completions";
+        const hostname = provider === "groq" ? "api.groq.com" : "openrouter.ai";
+        const path = provider === "groq"
+          ? "/openai/v1/chat/completions"
+          : "/api/v1/chat/completions";
 
         const result = await httpsPost(
           hostname,
@@ -116,7 +107,6 @@ const server = http.createServer(async (req, res) => {
 
         resultText = result.body?.choices?.[0]?.message?.content ?? null;
 
-      // ── GEMINI ──
       } else if (provider === "gemini") {
         const result = await httpsPost(
           "generativelanguage.googleapis.com",
@@ -144,9 +134,7 @@ const server = http.createServer(async (req, res) => {
 
         resultText = result.body?.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 
-      // ── HUGGING FACE (EKLEDİK) ──
       } else if (provider === "huggingface") {
-        // Hugging Face için gereken model adı body'den alınır, yoksa varsayılan
         const hfModel = model || "mistralai/Mistral-7B-Instruct-v0.3";
         const result = await httpsPost(
           "api-inference.huggingface.co",
@@ -171,7 +159,6 @@ const server = http.createServer(async (req, res) => {
           return;
         }
 
-        // Hugging Face yanıtı: [{generated_text: "..."}]
         const hfData = result.body;
         if (Array.isArray(hfData) && hfData.length > 0 && hfData[0].generated_text) {
           resultText = hfData[0].generated_text;
@@ -191,9 +178,7 @@ const server = http.createServer(async (req, res) => {
         return;
       }
 
-      // Temizle ve doğrula
       let cleaned = resultText.trim().replace(/```json/g, "").replace(/```/g, "").trim();
-
       let parsed;
       try {
         parsed = JSON.parse(cleaned);
